@@ -1,57 +1,86 @@
 
+# Game of Life using pygame
+
+import pygame 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+import time
 
-def update(frameNum, img, grid, N):
-    # copy grid since we require 8 neighbors for calculation
-    # and we go line by line 
-    newGrid = grid.copy()
-    for i in range(N):
-        for j in range(N):
-            # compute 8-neghbor sum using toroidal boundary conditions - x and y wrap around
-            # so that the simulation takes place on a toroidal surface.
-            total = int((grid[i, (j-1)%N] + grid[i, (j+1)%N] +
-                         grid[(i-1)%N, j] + grid[(i+1)%N, j] +
-                         grid[(i-1)%N, (j-1)%N] + grid[(i-1)%N, (j+1)%N] +
-                         grid[(i+1)%N, (j-1)%N] + grid[(i+1)%N, (j+1)%N])/255)
-            # apply Conway's rules
-            if grid[i, j]  == ON:
-                if (total < 2) or (total > 3):
-                    newGrid[i, j] = OFF
-            else:
-                if total == 3:
-                    newGrid[i, j] = ON
-    # update data
-    img.set_data(newGrid)
-    grid[:] = newGrid[:]
-    return img,
+# Setting up colors
 
-# main() function
+color_bg = (10,10,10)
+
+color_grid = (40,40,40)
+
+color_die_next = (170,170,170)
+
+color_alive_next = (255,255,255)
+
+def update(screen, cells, size, with_progress= False):
+    updated_cells = np.zeros((cells.shape[0], cells.shape[1]))
+    
+    for row, col in np.ndindex(cells.shape):
+        alive= np.sum(cells[row-1:row+2, col-1:col+2]) - cells[row, col]
+        color = color_bg if cells[row, col] ==0 else color_alive_next
+        
+        if cells[row, col] ==1:
+            if alive < 2 or alive >3:
+                if with_progress:
+                    color= color_die_next
+                    
+                elif 2<= alive <= 3:
+                    updated_cells[row, col] = 1
+                    if with_progress:
+                        color= color_alive_next
+                        
+                else:
+                    if alive == 3:
+                        updated_cells[row,col] = 1
+                        if with_progress:
+                            color= color_alive_next
+             
+                pygame.draw.rect(screen, color, (col*size, row * size, size -1, size -1))
+
+
+                return updated_cells        
+
 def main():
-    # set grid size
-    N = 100
-    # set animation update interval
-    updateInterval = 50
-    # declare grid
-    grid = np.array([])
+    pygame.init()                
+    screen = pygame.display.set_mode((800,600))     
 
-    # populate grid with random on/off - more off than on
-    grid = np.random.choice([ON, OFF], N*N, p=[0.2, 0.8]).reshape(N, N)
-
-    # set up animation
-    fig, ax = plt.subplots()
-    img = ax.imshow(grid, interpolation='nearest')
-    ani = animation.FuncAnimation(fig, update, fargs=(img, grid, N, ),
-                                  frames = 10,
-                                  interval=updateInterval,
-                                  save_count=50)
-
-    plt.show()
-
-# call main
+    cells = np.zeros((60,80))  
+    screen.fill(color_grid)
+    update(screen, cells, 10)
+    
+    pygame.display.flip()
+    pygame.display.update()
+    
+    running = False
+    
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    running = not running
+                    update(screen, cells, 10)
+                    pygame.display.update()
+                    
+            if pygame.mouse.get_pressed()[0]:
+                 pos = pygame.mouse.get_pos()
+                 cells[pos[1] // 10, pos[0] // 10] = 1
+                 update(screen, cells, 10)
+                 pygame.display.update()
+                 
+            screen.fill(color_grid)
+            
+            if running:
+                cells = update(screen, cells, 10, with_progress = True)
+                pygame.display.update()
+                
+            time.sleep(0.001)
+            
+            
 if __name__ == '__main__':
-    # set the ON/OFF values
-    ON = 255  # alive
-    OFF = 0  # dead
     main()
